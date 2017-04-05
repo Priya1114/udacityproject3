@@ -1,0 +1,190 @@
+import psycopg2
+
+
+def createTournament(name):
+    db = connect()
+    cur = db.cursor()
+    cur.execute("insert into tournaments (name) " +
+               "values(%s) returning id", (name,))
+    i = cur.fetchone()[0]
+    db.commit()
+    db.close()
+    return i
+
+
+def countPlayers(i):
+    db = connect()
+    cur = db.cursor()
+    sql = "select count(player) as num from scorebd where tournament=%s"
+    cur.execute(sql, (i))
+    players = cur.fetchone()[0]
+    db.commit()
+    db.close()
+    return players
+
+
+def registerPlayer(name, i):
+    db = connect()
+    cur = db.cursor()
+    cur.execute("insert into palyers (name) values (%s) returning id", (name))
+    pid = cur.fetchone()[0]
+    scoreboad = """INSERT INTO scoreboard
+                    (tournament, player, score, matches, bye)
+                    VALUES (%s,%s,%s,%s,%s)"""
+    cur.execute(scoreboad, (i, pid, 0, 0, 0))
+    db.commit()
+    db.close()
+
+
+def playerStanding(i):
+    db = connect()
+    cur = db.cursor()
+    players = """SELECT s.player, p.name, s.score, s.matches, s.finish,
+                    (SELECT SUM(s2.score)
+                     FROM scorebd AS s2
+                     WHERE s2.player IN (SELECT los
+                                     FROM matches
+                                     WHERE win = s.player
+                                     AND tournament = %s)
+                     OR s2.player IN (SELECT win
+                                 FROM matches
+                                 WHERE los = s.player
+                                 AND tournament = %s)) AS owm
+                 FROM scorebd AS s
+                 INNER JOIN players AS p on p.id = s.player
+                 WHERE tournament = %s
+                 ORDER BY s.score DESC, owm DESC, s.matches DESC"""
+    cur.execute(players, (i, i, i))
+    ranks = []
+    for j in cur.fetchall():
+        ranks.append(j)
+    db.close()
+    return ranks
+
+
+def reportMatch(i, win, los, draw='FALSE'):
+    if draw == 'TRUE':
+        wpoint = 1
+        lpoint = 1
+    else:
+        wpoint = 3
+        lpoint = 0
+    db = connect()
+    cur = db.cursor()
+    cur.execute("insert into matches values(i, win, los, draw)")
+    cur.execute("UPDATE scoreboard SET score = score+%s, matches = matches+1" +
+                "WHERE player = %s AND tournament = %s",
+                (wpoint, win, i))
+    cur.execute("UPDATE scoreboard SET score = score+%s, matches = matches+1" +
+                "WHERE player = %s AND tournament = %s",
+                (lpoint, los, i))
+    db.commit()
+    db.close()
+
+
+def hasBye(id, i):
+    db = connect()
+    cur = db.cursor()
+    cur.execute("select finish from scorebd where" +
+                "player = id AND tournament = i")
+    finish = cur.fetchone()[0]
+    db.close()
+    if finish == 0:
+        return True
+    else:
+        return False
+
+
+def reportBye(player, i):
+    db = connect()
+    cur = db.connect()
+    cur.execute("UPDATE scoreboard SET score = score+3, bye=bye+1" +
+                "WHERE player = %s AND tournament = %s", (player, i))
+    db.commit()
+    db.close()
+
+
+def checkByes(i, ranks, index):
+    if abs(index) > len(ranks):
+        return -1
+    elif not hasBye(ranks[index][0], i):
+        return index
+    else:
+        return checkByes(i, ranks, (index-1))
+
+
+def validPair(palyer1, player2, i):
+    db = connect()
+    cur = db.cursor()
+    cur.execute("""SELECT winner, loser FROM matches""" +
+                """WHERE ((winner = %s AND loser = %s)""" +
+                """OR (winner = %s AND loser = %s))""" +
+                """AND tournament = %s""",
+                (player1, player2, player2, player1, i))
+    matches = c.rowcount
+    db.close()
+    if matches > 0:
+        return False
+    return True
+
+
+def checkPairs(i, ranks, id1, id2):
+    if id2 >= len(ranks):
+        return id1 + 1
+    elif validPair(ranks[id1][0], ranks[id2][0], tid):
+        return id2
+    else:
+        return checkPairs(tid, ranks, id1, (id2 + 1))
+
+
+def swissPairings(i):
+    ranks = playerStandings(i)
+    pairs = []
+    numPlayers = countPlayers(i)
+    if numPlayers % 2 != 0:
+        finish = ranks.pop(checkByes(tid, ranks, -1))
+        reportBye(tid, bye[0])
+        while len(ranks) > 1:
+            validMatch = checkPairs(tid, ranks, 0, 1)
+            player1 = ranks.pop(0)
+            player2 = ranks.pop(validMatch - 1)
+            pairs.append((player1[0], player1[1], player2[0], player2[1]))
+    return pairs
+
+
+def connect():
+    conn = psycopg2.connect("dbname=tournament")
+    return conn
+
+
+def deleteMatches():
+    db = connect()
+    cur = db.cursor()
+    cur.execute("delete from matches")
+    db.commit()
+    db.close()
+
+
+def deletePlayers():
+    db = connect()
+    cur = db.cursor()
+    cur.execute("delete from players")
+    db.commit()
+    db.close()
+
+
+def deleteTournaments():
+    db = connect()
+    cur = db.cursor()
+    cur.execute("delete from tournaments")
+    db.commit()
+    db.close()
+
+
+def deleteScoreboard():
+    db = connect()
+    cur = db.cursor()
+    cur.execute("delete from scorebd")
+    db.commit()
+    db.close()
+

@@ -1,0 +1,9 @@
+CREATE TABLE players(id SERIAL, name TEXT);
+
+CREATE TABLE tournaments(id SERIAL, name TEXT);
+
+CREATE TABLE matches(matchid SERIAL, tournament INTEGER,
+                     win INTEGER, los INTEGER, draw BOOLEAN);
+
+CREATE TABLE scorebd(tournament INTEGER, player INTEGER,
+                     score INTEGER, matches INTEGER, finish INTEGER);
