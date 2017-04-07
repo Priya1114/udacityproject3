@@ -1,16 +1,17 @@
-                                               # udacityproject3
+   ### udacityproject3
+   
 THIS REPO CONSISTS OF ONE OF THE UDACITYFULL STACK WEB DEVLOPMENT PROJECT:
 
-                                              #SWISS TOURNAMENT PAIRING SYSTEM-Relational Databases#
+  ###SWISS TOURNAMENT PAIRING SYSTEM-Relational Databases#
 
 ->This project includes the Database created on the basis of Swiss tournament system
 
-#INSTALLATION:
+###INSTALLATION:
 
  . We need to install Python 2.
  . Install Postgress.
 
-#USAGE:
+###USAGE:
 
   .open python IDLE.
   .open tournament.py using python IDLE.
